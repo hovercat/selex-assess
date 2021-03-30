@@ -1,0 +1,162 @@
+#!/usr/bin/env nextflow
+"""
+========================================================
+Groovy Helper Functions
+========================================================    
+"""
+def reverse_complement(String s) {
+    complement(s.reverse());
+}
+
+def complement(String s) {
+    def acgt_map = [
+        "A": "T",
+        "C": "G",
+        "G": "C",
+        "T": "A",
+        "a": "t",
+        "c": "g",
+        "g": "c",
+        "t": "a"
+    ];
+
+    char[] sc = new char[s.length()];
+    for (int i = 0; i < s.length(); i++) {
+        sc[i] = acgt_map[s[i]];
+    }
+    new String(sc);
+}
+
+def remove_all_extensions(String s) {
+    s.substring(0, s.indexOf("."));
+}
+
+def trim_fn(String s) {    
+    if (params.trim_filenames) {
+        return s.substring(0, s.indexOf(params.trim_delimiter));
+    } else {
+        return s;
+    }
+}
+
+def filter_selex_rounds(String round_name) {
+    if (params.round_order == null || params.round_order == "" || params.round_order.size() == 0) return true;
+    // // building regex to check files if they match the rounds specified in YOUR_SELEX
+    // round_regex = "(" + params.round_order.join('|') + ")" + params.trim_delimiter + ".*"; // TODO replace trim_delimiter with autodetect
+    // return s.matches(round_regex);
+    
+    return params.round_order.contains(round_name);
+}
+
+def get_round_id(String round_name) {
+    if (params.round_order == null || params.round_order == "" || params.round_order.size() == 0) return 0;
+    else return params.round_order.indexOf(round_name);
+}
+
+"""
+========================================================
+Make output directory if it doesn't exist
+========================================================    
+"""
+dir_output = file(params.output_dir)
+if (!dir_output.exists()) {
+    if (!dir_output.mkdir()) {
+        println("Couldn't create output directory.")
+    }
+}
+
+
+"""
+========================================================
+Read FASTA-files from specified input directory and order by round_order (if present)
+========================================================    
+"""
+fasta_files = Channel.fromPath(params.input_dir + "/" + params.fasta_pattern, checkIfExists:true, type: "file")
+fasta_files
+    .map { it -> [get_round_id(it.getSimpleName()), it.getSimpleName(), it].flatten() }
+    .filter { filter_selex_rounds(it[1]) }
+    .into { fasta_files_filtered; fasta_files_nt  }
+   
+fasta_files_filtered
+    .toSortedList( { a, b -> a[0] <=> b[0] } ) 
+    .collect { it -> return it.collect { it[2] } }
+    .into { fasta_files_sorted; fasta_files_sorted_nt }
+
+"""
+========================================================
+Analysing SELEX Enrichment
+========================================================
+"""
+
+process dereplicate_rpm {
+	conda 'pandas'
+    publishDir "${params.output_dir}/",
+        pattern: '*{csv,fasta}',
+        mode: "copy"
+                
+    input:
+        file(fasta) from fasta_files_sorted
+    output:
+        tuple file("aptamers.dereplicated.fasta"), file("aptamer.dereplicated.csv"), file("aptamers.dereplicated.rpm.csv") into selex_dereplicated
+        
+    """
+        selex_dereplicate_fasta.py -o aptamers.dereplicated.fasta -c aptamers.dereplicated.csv ${fasta}
+        selex_rpm.r -i aptamers.dereplicated.csv -o aptamers.dereplicated.rpm.csv
+    """
+}
+
+process assess_selex_enrichment {
+    publishDir "${params.output_dir}/analysis.enricment",
+        pattern: '*',
+        mode: "copy"
+                
+    input:
+    tuple file("aptamers.dereplicated.fasta"), file("aptamers.dereplicated.csv"), file("aptamers.dereplicated.rpm.csv") from selex_dereplicated
+    output:
+        file("enrichment*.csv") into selex_enrichment
+        file("enrichment*.png") into selex_enrichment_png
+    """        
+        # Analyse Log Duplicates
+        selex_analyse_log_duplicates.r -i aptamers.dereplicated.csv --log-base 2 --out-unique-csv enrichment.unique.log2.csv --out-csv enrichment.log2.csv
+        selex_analyse_log_duplicates.r -i aptamers.dereplicated.csv --log-base 10 --out-unique-csv enrichment.unique.log10.csv --out-csv enrichment.log10.csv
+        selex_analyse_log_duplicates.r -i aptamers.dereplicated.rpm.csv --log-base 2 --out-unique-csv enrichment.unique.log2.rpm.csv --out-csv enrichment.log2.rpm.csv
+        selex_analyse_log_duplicates.r -i aptamers.dereplicated.rpm.csv --log-base 10 --out-unique-csv enrichment.unique.log10.rpm.csv --out-csv enrichment.log10.rpm.csv
+    """
+}
+
+
+"""
+========================================================
+Analysing Nucleotide Distribution
+========================================================
+"""
+process analyse_round_nt_distribution {
+	conda 'pandas'
+    publishDir "${params.output_dir}/analysis.nt_distribution",
+        pattern: '*.csv',
+        mode: "copy"
+    input:
+        tuple val(round_id), val(round_name), file(fasta) from fasta_files_nt
+    output:
+        tuple val(round_id), file("${round_name}.nt_distribution.csv") into nt_distribution_round_csv
+    script:
+    """
+        selex_nt_composition.py -i $fasta -o ${round_name}.nt_distribution.csv --DNA -n ${params.random_region}
+    """
+} //TODO hier fehlt irgendwie der plot?
+
+fasta_preprocessed_nt_distribution_sorted = nt_distribution_round_csv.toSortedList( { a -> a[0] } ).transpose().last().collect()
+process analyse_selex_nt_distribution {
+    publishDir "${params.output_dir}/analysis.nt_distribution",
+        pattern: '*{png,html}',
+        mode: "copy"
+    input:
+        file(round_csv) from fasta_files_sorted_nt
+    output:
+        file("nucleotide_composition.html") into nt_distribution_round_html
+        file("*.png") into nt_distribution_round_png
+    script:
+    """
+        selex_nt_composition_plot.r -i $round_csv -o ./nucleotide_composition.html
+    """
+}
