@@ -78,7 +78,7 @@ fasta_files
     .into { fasta_files_filtered; fasta_files_nt  }
    
 fasta_files_filtered
-    .toSortedList( { a, b -> a[0] <=> b[0] } ) 
+    .toSortedList( {a, b -> a[0] <=> b[0] } )
     .collect { it -> return it.collect { it[2] } }
     .into { fasta_files_sorted; fasta_files_sorted_nt }
 
@@ -89,7 +89,6 @@ Analysing SELEX Enrichment
 """
 
 process dereplicate_rpm {
-	conda 'pandas'
     publishDir "${params.output_dir}/",
         pattern: '*{csv,fasta}',
         mode: "copy"
@@ -97,30 +96,30 @@ process dereplicate_rpm {
     input:
         file(fasta) from fasta_files_sorted
     output:
-        tuple file("aptamers.dereplicated.fasta"), file("aptamer.dereplicated.csv"), file("aptamers.dereplicated.rpm.csv") into selex_dereplicated
+        tuple file("aptamers.fasta"), file("aptamers.csv"), file("aptamers.rpm.csv") into selex_dereplicated
         
     """
-        selex_dereplicate_fasta.py -o aptamers.dereplicated.fasta -c aptamers.dereplicated.csv ${fasta}
-        selex_rpm.r -i aptamers.dereplicated.csv -o aptamers.dereplicated.rpm.csv
+        selex_dereplicate_fasta.py -o aptamers.fasta -c aptamers.csv ${fasta}
+        selex_rpm.r -i aptamers.csv -o aptamers.rpm.csv
     """
 }
 
 process assess_selex_enrichment {
-    publishDir "${params.output_dir}/analysis.enricment",
+    publishDir "${params.output_dir}/analysis.enrichment",
         pattern: '*',
         mode: "copy"
                 
     input:
-    tuple file("aptamers.dereplicated.fasta"), file("aptamers.dereplicated.csv"), file("aptamers.dereplicated.rpm.csv") from selex_dereplicated
+    	tuple file("aptamers.fasta"), file("aptamers.csv"), file("aptamers.rpm.csv") from selex_dereplicated
     output:
         file("enrichment*.csv") into selex_enrichment
         file("enrichment*.png") into selex_enrichment_png
     """        
         # Analyse Log Duplicates
-        selex_analyse_log_duplicates.r -i aptamers.dereplicated.csv --log-base 2 --out-unique-csv enrichment.unique.log2.csv --out-csv enrichment.log2.csv
-        selex_analyse_log_duplicates.r -i aptamers.dereplicated.csv --log-base 10 --out-unique-csv enrichment.unique.log10.csv --out-csv enrichment.log10.csv
-        selex_analyse_log_duplicates.r -i aptamers.dereplicated.rpm.csv --log-base 2 --out-unique-csv enrichment.unique.log2.rpm.csv --out-csv enrichment.log2.rpm.csv
-        selex_analyse_log_duplicates.r -i aptamers.dereplicated.rpm.csv --log-base 10 --out-unique-csv enrichment.unique.log10.rpm.csv --out-csv enrichment.log10.rpm.csv
+        selex_analyse_log_duplicates.r -i aptamers.csv --log-base 2 --out-unique-csv enrichment.unique.log2.csv --out-csv enrichment.log2.csv
+        selex_analyse_log_duplicates.r -i aptamers.csv --log-base 10 --out-unique-csv enrichment.unique.log10.csv --out-csv enrichment.log10.csv
+        selex_analyse_log_duplicates.r -i aptamers.rpm.csv --log-base 2 --out-unique-csv enrichment.unique.log2.rpm.csv --out-csv enrichment.log2.rpm.csv
+        selex_analyse_log_duplicates.r -i aptamers.rpm.csv --log-base 10 --out-unique-csv enrichment.unique.log10.rpm.csv --out-csv enrichment.log10.rpm.csv
     """
 }
 
@@ -143,15 +142,21 @@ process analyse_round_nt_distribution {
     """
         selex_nt_composition.py -i $fasta -o ${round_name}.nt_distribution.csv --DNA -n ${params.random_region}
     """
-} //TODO hier fehlt irgendwie der plot?
+} 
 
-fasta_preprocessed_nt_distribution_sorted = nt_distribution_round_csv.toSortedList( { a -> a[0] } ).transpose().last().collect()
+//	fasta_preprocessed_nt_distribution_sorted = nt_distribution_round_csv.toSortedList( { a -> a[0] } ).transpose().last().collect()
+nt_distr_round_csv_sorted = nt_distribution_round_csv
+    .toSortedList( {a -> a[0] } )
+    .transpose()
+    .last()
+    .collect()
+
 process analyse_selex_nt_distribution {
     publishDir "${params.output_dir}/analysis.nt_distribution",
         pattern: '*{png,html}',
         mode: "copy"
     input:
-        file(round_csv) from fasta_files_sorted_nt
+        file(round_csv) from nt_distr_round_csv_sorted
     output:
         file("nucleotide_composition.html") into nt_distribution_round_html
         file("*.png") into nt_distribution_round_png
