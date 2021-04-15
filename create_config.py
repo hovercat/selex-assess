@@ -92,12 +92,18 @@ while not arguments.get("round_order"):
     if not arguments.get("round_order"):
         print("Please specify the round order of your FASTA-files!")
 
+while not arguments.get("random_region"):
+    arguments["random_region"] = parse_int(input("How long is the random region of your aptamers?"))
+
 # Ask for FASTA-Pattern
 while not arguments.get("fasta_pattern"):
     arguments["fasta_pattern"] = parse_string(input("Please provide a FASTA-search pattern, including a wild-card. For example: \nIf you had R0_S1_100.fasta, your search pattern should look like this: \'*.fasta\'\n"))
     if not arguments["fasta_pattern"]:
         print("Please specify a FASTA-search pattern!")
         
+while not arguments.get("top_n"):
+    arguments["top_n"] = parse_int(input("How many top aptamers should be printed to the xlsx-file?"))
+
 # Finished reading config parameters.
 print("")
 config_file_name = "./{}.config".format(make_sane_string(arguments["experiment"]))

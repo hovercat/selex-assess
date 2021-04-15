@@ -97,10 +97,25 @@ process dereplicate_rpm {
         file(fasta) from fasta_files_sorted
     output:
         tuple file("aptamers.fasta"), file("aptamers.csv"), file("aptamers.rpm.csv") into selex_dereplicated
+	file("aptamers.rpm.csv") into selex_top_n
         
     """
         selex_dereplicate_fasta.py -o aptamers.fasta -c aptamers.csv ${fasta}
         selex_rpm.r -i aptamers.csv -o aptamers.rpm.csv
+    """
+}
+
+process selex_top_n {
+    publishDir "${params.output_dir}/",
+        pattern: '*.xlsx',
+        mode: 'copy'
+    input:
+        file rpm_csv from selex_top_n
+    output:
+        file "top_${params.top_n}.xlsx" into selex_top_n_out
+    script:
+    """
+	selex_rpm_top_n.R -i $rpm_csv -o top_${params.top_n}.xlsx -n ${params.top_n}
     """
 }
 
