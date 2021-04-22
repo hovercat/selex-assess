@@ -31,16 +31,22 @@ def get_round_name(fasta_file_path):
 def read_file(fasta_file_path, seq_hash_map: dict):
     fasta_file = open(fasta_file_path, "r")
 
-    round_hash_list = []
-
+    round_hash_dict = dict()
+#    print(fasta_file_path)
+#    i = 0
     for seq_id in fasta_file:
         seq = fasta_file.readline().rstrip('\n')
-        seq_hash = hash(seq)
-        if seq_hash_map.get(seq_hash, 0) == 0:
-            seq_hash_map[seq_hash] = seq
+        #seq_hash = hash(seq)
+        if seq_hash_map.get(seq, 0) == 0:
+            seq_hash_map[seq] = seq
 
-        round_hash_list.append(seq_hash)
-    return round_hash_list
+        round_hash_dict[seq] = round_hash_dict.get(seq, 0) + 1
+        
+#        i += 1
+#        if i % 1000000 == 0:
+#            print(i / 1000000, end="")
+#            print(" million reads.")
+    return round_hash_dict
 
 
 def read_files(fasta_files):
@@ -49,7 +55,7 @@ def read_files(fasta_files):
     # Reading of sequences
     for fasta_file in fasta_files:
         round_name = get_round_name(fasta_file)
-        selex_dict[round_name] = Counter(read_file(fasta_file, seq_hash_map))
+        selex_dict[round_name] = read_file(fasta_file, seq_hash_map)
 
     counts_df = DataFrame.from_dict(selex_dict)
     index_df = DataFrame.from_dict(seq_hash_map, orient='index', columns=["seq"])
