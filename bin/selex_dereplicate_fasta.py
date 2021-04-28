@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import argparse
+import time
 from collections import Counter
 from pandas import DataFrame
 
@@ -31,22 +32,29 @@ def get_round_name(fasta_file_path):
 def read_file(fasta_file_path, seq_hash_map: dict):
     fasta_file = open(fasta_file_path, "r")
 
-    round_hash_dict = dict()
-#    print(fasta_file_path)
-#    i = 0
-    for seq_id in fasta_file:
+    seq_list = []
+    start = time.time()
+    i = 0
+    while fasta_file.readline():
         seq = fasta_file.readline().rstrip('\n')
-        #seq_hash = hash(seq)
-        if seq_hash_map.get(seq, 0) == 0:
-            seq_hash_map[seq] = seq
+        seq_list.append(seq)
 
-        round_hash_dict[seq] = round_hash_dict.get(seq, 0) + 1
+        # if i % 1000000 == 0:
+        #     print(time.time()-start, end='s \n')
+        #     start = time.time()
+        # i+=1
         
-#        i += 1
-#        if i % 1000000 == 0:
-#            print(i / 1000000, end="")
-#            print(" million reads.")
-    return round_hash_dict
+    round_dict = dict()
+    counter = Counter(seq_list)
+    i = 0
+    print("COUNTER")
+    for seq in counter:
+        round_dict[seq] = counter[seq]
+        # if i % 1000000 == 0:
+        #     print(time.time() - start, end='s \n')
+        #     start = time.time()
+        # i += 1
+    return round_dict
 
 
 def read_files(fasta_files):
@@ -57,22 +65,31 @@ def read_files(fasta_files):
         round_name = get_round_name(fasta_file)
         selex_dict[round_name] = read_file(fasta_file, seq_hash_map)
 
-    counts_df = DataFrame.from_dict(selex_dict)
+    counts_df = DataFrame.from_dict(selex_dict, dtype=int)
     index_df = DataFrame.from_dict(seq_hash_map, orient='index', columns=["seq"])
     selex_df = counts_df.join(index_df)
     selex_df = selex_df.set_index("seq")
     selex_df[selex_df.isna()] = 0
+    selex_df = selex_df.astype(int)
     return selex_df
 
 
 def print_fasta_file(out_file, round_names, sequences):
     # Print counted sequences to out_file
-    for sequence, round_counts in sequences.iterrows():
-        round_counts = '-'.join(str(int(x)) for x in list(round_counts))
+    sequences_str = sequences.astype(str)
+    for sequence, round_counts in sequences_str.iterrows():
+        #print(round_counts)
+#        round_counts = '-'.join(str(int(x)) for x in list(round_counts.values))
+        
 
         # WRITE TO FILE:
-        out_file.write(">{} {}\n".format(sequence, round_counts))
-        out_file.write("{}\n".format(sequence))
+        out_file.write(">")
+        out_file.write(sequence)
+        out_file.write(' ')
+        out_file.write('-'.join(round_counts.values))
+        out_file.write('\n')
+        out_file.write(sequence)
+        out_file.write('\n')
 
     out_file.flush()
 
@@ -84,7 +101,7 @@ def print_csv_file(out_file, round_names, sequences):
         # WRITE TO FILE:
         out_file.write("{}\t{}\n".format(
             sequence,
-            '\t'.join(str(int(x)) for x in list(round_counts))
+            '\t'.join(str(x) for x in round_counts.values)
         ))
     out_file.flush()
 

@@ -105,7 +105,7 @@ process dereplicate_rpm {
     """
 }
 
-process selex_top_n {
+/*process selex_top_n {
     publishDir "${params.output_dir}/",
         pattern: '*.xlsx',
         mode: 'copy'
@@ -145,7 +145,7 @@ Analysing Nucleotide Distribution
 ========================================================
 """
 process analyse_round_nt_distribution {
-	conda 'pandas'
+	conda 'conda-forge::pandas'
     publishDir "${params.output_dir}/analysis.nt_distribution",
         pattern: '*.csv',
         mode: "copy"
@@ -179,4 +179,4 @@ process analyse_selex_nt_distribution {
     """
         selex_nt_composition_plot.r -i $round_csv -o ./nucleotide_composition.html
     """
-}
+}*/
