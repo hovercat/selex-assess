@@ -4,41 +4,6 @@
 Groovy Helper Functions
 ========================================================    
 """
-def reverse_complement(String s) {
-    complement(s.reverse());
-}
-
-def complement(String s) {
-    def acgt_map = [
-        "A": "T",
-        "C": "G",
-        "G": "C",
-        "T": "A",
-        "a": "t",
-        "c": "g",
-        "g": "c",
-        "t": "a"
-    ];
-
-    char[] sc = new char[s.length()];
-    for (int i = 0; i < s.length(); i++) {
-        sc[i] = acgt_map[s[i]];
-    }
-    new String(sc);
-}
-
-def remove_all_extensions(String s) {
-    s.substring(0, s.indexOf("."));
-}
-
-def trim_fn(String s) {    
-    if (params.trim_filenames) {
-        return s.substring(0, s.indexOf(params.trim_delimiter));
-    } else {
-        return s;
-    }
-}
-
 def filter_selex_rounds(String round_name) {
     if (params.round_order == null || params.round_order == "" || params.round_order.size() == 0) return true;
     // // building regex to check files if they match the rounds specified in YOUR_SELEX
@@ -80,7 +45,7 @@ fasta_files
 fasta_files_filtered
     .toSortedList( {a, b -> a[0] <=> b[0] } )
     .collect { it -> return it.collect { it[2] } }
-    .into { fasta_files_sorted; fasta_files_sorted_nt }
+    .set { fasta_files_sorted }
 
 """
 ========================================================
@@ -97,7 +62,7 @@ process dereplicate_rpm {
         file(fasta) from fasta_files_sorted
     output:
         tuple file("aptamers.fasta"), file("aptamers.csv"), file("aptamers.rpm.csv") into selex_dereplicated
-	file("aptamers.rpm.csv") into selex_top_n
+	file("aptamers.csv") into selex_top_n
         
     """
         selex_dereplicate_fasta.py -o aptamers.fasta -c aptamers.csv ${fasta}
@@ -105,17 +70,17 @@ process dereplicate_rpm {
     """
 }
 
-/*process selex_top_n {
+process selex_top_n {
     publishDir "${params.output_dir}/",
         pattern: '*.xlsx',
         mode: 'copy'
     input:
-        file rpm_csv from selex_top_n
+        file aptamers_csv from selex_top_n
     output:
         file "top_${params.top_n}.xlsx" into selex_top_n_out
     script:
     """
-	selex_rpm_top_n.R -i $rpm_csv -o top_${params.top_n}.xlsx -n ${params.top_n}
+		selex_top_n.R -i $aptamers_csv -o top_${params.top_n}.xlsx -n ${params.top_n}
     """
 }
 
@@ -144,8 +109,7 @@ process assess_selex_enrichment {
 Analysing Nucleotide Distribution
 ========================================================
 """
-process analyse_round_nt_distribution {
-	conda 'conda-forge::pandas'
+process analyse_selex_nt_distribution {
     publishDir "${params.output_dir}/analysis.nt_distribution",
         pattern: '*.csv',
         mode: "copy"
@@ -159,14 +123,13 @@ process analyse_round_nt_distribution {
     """
 } 
 
-//	fasta_preprocessed_nt_distribution_sorted = nt_distribution_round_csv.toSortedList( { a -> a[0] } ).transpose().last().collect()
 nt_distr_round_csv_sorted = nt_distribution_round_csv
     .toSortedList( {a -> a[0] } )
     .transpose()
     .last()
     .collect()
 
-process analyse_selex_nt_distribution {
+process plot_selex_nt_distribution {
     publishDir "${params.output_dir}/analysis.nt_distribution",
         pattern: '*{png,html}',
         mode: "copy"
@@ -179,4 +142,4 @@ process analyse_selex_nt_distribution {
     """
         selex_nt_composition_plot.r -i $round_csv -o ./nucleotide_composition.html
     """
-}*/
+}

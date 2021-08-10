@@ -39,17 +39,22 @@ def read_file(fasta_file_path, seq_hash_map: dict):
         seq = fasta_file.readline().rstrip('\n')
         seq_list.append(seq)
 
-        # if i % 1000000 == 0:
+        if (i+1) % 1000000 == 0:
         #     print(time.time()-start, end='s \n')
         #     start = time.time()
-        # i+=1
+            break
+        i+=1
         
     round_dict = dict()
     counter = Counter(seq_list)
     i = 0
-    print("COUNTER")
+    #print("COUNTER")
     for seq in counter:
-        round_dict[seq] = counter[seq]
+        seq_count = counter[seq]
+        if seq_count < 2:
+            continue
+
+        round_dict[seq] = seq_count
         # if i % 1000000 == 0:
         #     print(time.time() - start, end='s \n')
         #     start = time.time()
@@ -65,10 +70,10 @@ def read_files(fasta_files):
         round_name = get_round_name(fasta_file)
         selex_dict[round_name] = read_file(fasta_file, seq_hash_map)
 
-    counts_df = DataFrame.from_dict(selex_dict, dtype=int)
-    index_df = DataFrame.from_dict(seq_hash_map, orient='index', columns=["seq"])
-    selex_df = counts_df.join(index_df)
-    selex_df = selex_df.set_index("seq")
+    selex_df = DataFrame.from_dict(selex_dict, dtype=int)
+    #index_df = DataFrame.from_dict(seq_hash_map, orient='index', columns=["seq"])
+    #selex_df = counts_df.join(index_df)
+    #selex_df = counts_df.set_index("seq")
     selex_df[selex_df.isna()] = 0
     selex_df = selex_df.astype(int)
     return selex_df

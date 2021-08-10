@@ -11,10 +11,10 @@ args_parser = ArgumentParser(
   prog="selex_rpm_top_n",
   description=""
 )
-args_parser$add_argument("--in-rpm-csv", "-i", help="Input file must be csv as created by SELEXrpm", required=TRUE)
+args_parser$add_argument("--in-csv", "-i", help="Input file must be csv as created by selex_dereplicate_fasta", required=TRUE)
 args_parser$add_argument("--out-file", "-o", default="top1000.xlsx", help="Output file. Default: top1000.xlsx")
 args_parser$add_argument("--top", "-n", type="integer", default=1000, help="Output top n sequences from every round.")
-#args <- args_parser$parse_args(c("-i", "rpm.csv"))
+#args <- args_parser$parse_args(c("-i", "work/4b/0a2d0a28f9630f0f555a889847fb58/aptamers.csv"))
 args <- args_parser$parse_args()
 
 # EXCEL Workbook
@@ -27,7 +27,12 @@ style_data = CellStyle(wb) + Font(wb, name="Courier New", heightInPoints = 10)
 style_number = CellStyle(wb, dataFormat=DataFormat("0")) + Font(wb, heightInPoints = 10) # no decimal point
 
 # Data input
-df_rpm <-  read.csv(args$in_rpm_csv, sep=";", header=TRUE)
+df_rpm <-  read.csv(args$in_csv, sep="\t", header=TRUE) %>% 
+  pivot_longer(-sequence, names_to = 'round', values_to = 'count') %>%
+  group_by(round) %>%
+  mutate(
+    rpm = 10^6 * (count / sum(count))
+  )
 round_names <- levels(factor(df_rpm$round))
 for (round_name in round_names) {
   # Data stuff
@@ -35,11 +40,11 @@ for (round_name in round_names) {
     filter(round == round_name) %>%
     arrange(desc(rpm)) %>%
     mutate(rank = row_number(desc(rpm))) %>% # rpm=round(rpm, digits=0)
-    select(rank, count, rpm, seq, p5_seq_p3)
+    select(rank, count, rpm, sequence)
   
   df_top_1000 <- df_round %>%
     top_n(-args$top, rank) %>% # select from bottom by rank
-    rename("absolute"="count", "rpm"="rpm", "random region"="seq", "full sequence"="p5_seq_p3")
+    rename("absolute"="count", "rpm"="rpm", "random region"="sequence")
   df_top_1000$"analysed as" <- " "
   
   # Fill sheet with info
@@ -63,11 +68,12 @@ for (round_name in round_names) {
   setColumnWidth(sheet, 1, 7)
   setColumnWidth(sheet, 2, 8)
   setColumnWidth(sheet, 3, 8)
-  setColumnWidth(sheet, 4, 40)
-  setColumnWidth(sheet, 5, 15)
+  setColumnWidth(sheet, 4, 8)
+  setColumnWidth(sheet, 5, 40)
+  setColumnWidth(sheet, 6, 15)
   
   addDataFrame(
-    df_top_1000, 
+    data.frame(df_top_1000),
     sheet,
     col.names = TRUE,
     row.names = FALSE,

@@ -16,7 +16,7 @@ args_parser$add_argument("--log-base", "-l", type="integer", default=10, help="B
 args_parser$add_argument("--min-abundancy", "-m", type="integer", default=1, help="Determines how often the sequence must be present to be considered. Default: 1")
 args_parser$add_argument("--out-unique-csv", default="selex_success.unqiue.csv", help="")
 args_parser$add_argument("--out-csv", default="selex_success.csv", help="")
-#args <- args_parser$parse_args(c("-i", "work/b4/5cc0b1e226b06da72db1b079a33c17/selex.aptamers.rpm.csv", "-l", "2"))
+#args <- args_parser$parse_args(c("-i", "work/23/88c54b264af9acdc0b239450e5a8c0/aptamers.csv", "-l", "10"))
 args <- args_parser$parse_args()
 
 
@@ -29,23 +29,29 @@ df <-  read.csv(args$in_csv, sep="\t", header=TRUE) %>%
     exponent = floor(log(count, base=args$log_base))
   ) %>%
   ungroup()
-
 round_names <- levels(factor(df$round))
+
+# Cross join round names with exponents
 crossed <- round_names %>%
-  crossing(1:max(df$exponent))
+  crossing(0:max(df$exponent))
 colnames(crossed) <- c("round", "exponent")
 
+# Assign sequences to their respective bins
+# Two bin sizes are summed:
+#   Total: If a read is counted 1000 times, the bin is increased by 1000
+#   Unique: If a unique read is counted 1000 times, the bin is increased by 1
 df_binning <- df %>%
   group_by(round, exponent) %>% 
   summarize(bin_size_total=sum(count), bin_size_unique=n()) %>%
   right_join(crossed)
 df_binning[is.na(df_binning)] <- 0
 
-
+# Summarize table
 selex_success <- df_binning %>% 
   pivot_wider(exponent, names_from=round, values_from=bin_size_total) %>%
   arrange(exponent)
 
+# Write table to CSV
 write.table(
   selex_success,
   args$out_csv,
@@ -55,7 +61,7 @@ write.table(
   sep="\t",
   na="0"
 )
-
+# Plot in barplot
 gg <- ggplot(data=df_binning, mapping = aes(x=round, y=bin_size_total, fill=factor(exponent))) +
   geom_col(position="fill") +
   labs(fill="") +
@@ -70,6 +76,7 @@ gg <- ggplot(data=df_binning, mapping = aes(x=round, y=bin_size_total, fill=fact
 
 ggsave(paste0(args$out_csv, ".png"), gg)
 
+# Summarize table in unique style
 selex_success_unique <- df_binning %>% 
   pivot_wider(exponent, names_from=round, values_from=bin_size_unique)
 
