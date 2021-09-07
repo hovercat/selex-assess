@@ -103,7 +103,12 @@ def analyse_selex_round(in_file, out_file, n_region, alphabet, percentages, coll
 
 args_parser = argparse.ArgumentParser(
     prog="SELEXntcomposition",
-    description="",
+    description="SELEXntcomposition takes a FASTA file (or reads from stdin) and assesses the distribution of nucleotides of every position."
+    			"Only sequences of a certain length n are considered."
+    			"By default SELEXntcomposition assumes the FASTA file to be DNA."
+    			"The script writes in csv format to stdout or alternatively directly to a csv-file."
+                "\n"
+                "Author: Ulrich Aschl (ulrich.aschl@tuwien.ac.at)","
     formatter_class=argparse.RawTextHelpFormatter
 )
 

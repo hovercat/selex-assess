@@ -6,7 +6,10 @@ library("tidyr")
 # Parameter validation
 args_parser = ArgumentParser(
   prog="SELEXrpm",
-  description=""
+  description="SELEXrpm takes the output csv from SELEXderep an calculates the sequence counts in reads per million (RPM). "
+                "SELEXrpm writes to rpm.csv by default."
+                "\n"
+                "Author: Ulrich Aschl (ulrich.aschl@tuwien.ac.at)"
 )
 args_parser$add_argument("--in-derep-csv", "-i", help="Input file must be csv as created by SELEXderep.", required=TRUE)
 args_parser$add_argument("--out-file", "-o", default="rpm.csv", help="Output file. Default: rpm.csv")

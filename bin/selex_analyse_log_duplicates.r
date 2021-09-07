@@ -9,7 +9,11 @@ library("ggplot2")
 # Parameter validation
 args_parser = ArgumentParser(
   prog="SELEXanalyse_log_duplicates",
-  description=""
+  description="SELEXanalyse_log_duplicates takes a csv file as return by SELEXderep, a logarithmic base and a minimal abundancy for sequences to be considered."
+                "It places every sequence on a logarithmically scaled binning and plots their distribution from round to round."
+                "It writes out csv files and plots in png format.\n"
+                "\n"
+                "Author: Ulrich Aschl (ulrich.aschl@tuwien.ac.at)","
 )
 args_parser$add_argument("--in-csv", "-i", help="Input file must be csv as created by SELEX_dereplicate SELEX_rpm", required=TRUE)
 args_parser$add_argument("--log-base", "-l", type="integer", default=10, help="Bins are spaced logarithmically, e.g. for log-base of 10: [1, 10, 100, 1000, ...]. Default: 10")
