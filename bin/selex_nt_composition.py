@@ -108,7 +108,7 @@ args_parser = argparse.ArgumentParser(
     			"By default SELEXntcomposition assumes the FASTA file to be DNA."
     			"The script writes in csv format to stdout or alternatively directly to a csv-file."
                 "\n"
-                "Author: Ulrich Aschl (ulrich.aschl@tuwien.ac.at)","
+                "Author: Ulrich Aschl (ulrich.aschl@tuwien.ac.at)",
     formatter_class=argparse.RawTextHelpFormatter
 )
 
